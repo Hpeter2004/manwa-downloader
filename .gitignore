@@ -1,0 +1,55 @@
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ========== PyInstaller 构建产物 ==========
+build/
+dist/
+*.manifest
+
+# ========== 可执行文件（体积大，请通过 Releases 分发）==========
+*.exe
+*.dll
+
+# ========== 运行时生成 ==========
+manwa_download.log
+*.log
+.domain_cache.json
+*.tmp
+
+# ========== 下载的漫画内容（版权资源，绝不入库）==========
+*.zip
+*.rar
+*.7z
+*.cbz
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.avif
+
+# 已知的下载目录（新下载的漫画文件夹靠上面的图片扩展名规则自动忽略）
+/东京食尸鬼/
+/出租女孩/
+/小裤裤笔记/
+/岳母为何那样/
+/斗破苍穹/
+/犬夜叉/
+/美丽新世界*/
+/至尊瞳术师*/
+/邪教教主/
+
+# ========== 本地工具 / 编辑器 ==========
+.workbuddy/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

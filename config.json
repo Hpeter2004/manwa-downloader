@@ -1,0 +1,21 @@
+{
+    "_comment": "ManwaDownloader 配置文件 — 修改后保存即可生效，删除此文件使用自动探测",
+    "_base_url_help": "留空或删除此字段 → 自动探测可用域名，填写具体值 → 强制使用该域名",
+    "_speed_help": "workers = 全局同时下载的图片数；ch_workers = 同时进行的章节数。网络好可调到 96 / 12；若出现大量失败或反而变慢，就调小。",
+    "_proxy_help": "连不上站点时填写代理地址，例如 http://127.0.0.1:7890 ；留空 = 直连",
+    "base_url": "",
+    "proxy": "",
+    "image_sources": [
+        "https://tu.mwzu.cc",
+        "https://svip.mwtt.cc",
+        "https://tu.mwla.cc",
+        "https://fm.mwtt.cc"
+    ],
+    "workers": 64,
+    "ch_workers": 8,
+    "default_source": 0,
+    "retry": 2,
+    "rate_limit": 0.05,
+    "connect_timeout": 5,
+    "read_timeout": 25
+}

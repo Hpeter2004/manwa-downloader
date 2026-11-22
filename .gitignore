@@ -54,3 +54,4 @@ manwa_download.log
 .DS_Store
 Thumbs.db
 desktop.ini
+.crawl-checkpoint.json

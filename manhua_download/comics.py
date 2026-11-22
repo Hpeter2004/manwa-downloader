@@ -34,7 +34,9 @@ try:
     from rich import box
     from rich.console import Console
     from rich.live import Live
+    from rich.markup import escape
     from rich.table import Table
+    from rich.text import Text
     HAS_RICH_TABLE = True
     console = Console()
 except ImportError:
@@ -45,6 +47,8 @@ except ImportError:
 POLL_INTERVAL = 0.25
 # A name can be long; the table clips it, the registry never truncates.
 NAME_MAX_WIDTH = 40
+# 目录抓全后有 17 万条，终端表格只显示前这么多行
+DISPLAY_LIMIT = 50
 
 
 # ============================================================
@@ -102,12 +106,13 @@ class ComicRegistry:
     through the file, so lazy flushing would make the table feel stale.
     """
 
-    __slots__ = ("_path", "_lock", "_comics", "_version", "_mtime")
+    __slots__ = ("_path", "_lock", "_comics", "_by_name", "_version", "_mtime")
 
     def __init__(self, path: Path | None = None):
         self._path = Path(path) if path is not None else registry_path()
         self._lock = threading.RLock()
         self._comics: dict[str, dict] = {}     # cid -> entry
+        self._by_name: dict[str, str] = {}     # name -> cid (唯一性索引)
         self._version = 0
         self._mtime = 0.0
         self.load()
@@ -156,6 +161,13 @@ class ComicRegistry:
                         name, owner, cid,
                     )
                     continue
+                # 同一个 ID 出现两次时，后出现的名字生效（旧名字要释放）
+                prev = comics.get(cid)
+                if prev is not None:
+                    by_name.pop(prev["name"], None)
+                    prev["name"] = name
+                    by_name[name] = cid
+                    continue
                 by_name[name] = cid
                 comics[cid] = {
                     "cid": cid,
@@ -166,6 +178,7 @@ class ComicRegistry:
                 }
 
             self._comics = comics
+            self._by_name = by_name
             self._mtime = mtime
             self._version += 1
             return True
@@ -237,10 +250,7 @@ class ComicRegistry:
             return False
 
     def _owner_of(self, name: str) -> str | None:
-        for cid, entry in self._comics.items():
-            if entry["name"] == name:
-                return cid
-        return None
+        return self._by_name.get(name)
 
     # ---------- writes ----------
 
@@ -257,7 +267,7 @@ class ComicRegistry:
 
         with self._lock:
             now = time.time()
-            owner = self._owner_of(name)
+            owner = self._by_name.get(name)
 
             # 1) Title belongs to another ID -> keep the mapping, record alias.
             if owner is not None and owner != cid:
@@ -275,7 +285,10 @@ class ComicRegistry:
             entry = self._comics.get(cid)
             # 2) Known ID -> refresh timestamp, follow a rename.
             if entry is not None:
-                entry["name"] = name
+                if entry["name"] != name:
+                    self._by_name.pop(entry["name"], None)
+                    entry["name"] = name
+                    self._by_name[name] = cid
                 entry["updated"] = now
                 self._commit()
                 return cid
@@ -288,8 +301,65 @@ class ComicRegistry:
                 "updated": now,
                 "aliases": [],
             }
+            self._by_name[name] = cid
             self._commit()
             return cid
+
+    def upsert_many(self, pairs, batch: int = 2000) -> dict:
+        """Bulk bind ``(cid, name)`` pairs, flushing once per ``batch`` rows.
+
+        ``upsert()`` rewrites the whole file on every call — fine for a handful
+        of comics, quadratic when importing a catalogue (170k rows would rewrite
+        a growing 30 MB file 170k times). Same invariants, batched flush.
+        """
+        added = merged = 0
+        pending = 0
+        now = time.time()
+
+        with self._lock:
+            for cid, name in pairs:
+                cid = str(cid).strip()
+                name = _key(name)
+                if not cid or not name:
+                    continue
+
+                owner = self._by_name.get(name)
+                if owner is not None and owner != cid:
+                    entry = self._comics[owner]
+                    if cid not in entry["aliases"]:
+                        entry["aliases"].append(cid)
+                    merged += 1
+                    continue
+
+                entry = self._comics.get(cid)
+                if entry is not None:
+                    if entry["name"] != name:
+                        self._by_name.pop(entry["name"], None)
+                        entry["name"] = name
+                        self._by_name[name] = cid
+                    merged += 1
+                else:
+                    self._comics[cid] = {
+                        "cid": cid,
+                        "name": name,
+                        "chapters": 0,
+                        "updated": now,
+                        "aliases": [],
+                    }
+                    self._by_name[name] = cid
+                    added += 1
+
+                pending += 1
+                if pending >= batch:
+                    self._version += 1
+                    self._save_locked()
+                    pending = 0
+
+            if pending or (added or merged):
+                self._version += 1
+                self._save_locked()
+
+        return {"added": added, "merged": merged}
 
     def set_chapters(self, cid: str, chapters: int) -> None:
         """Record how many chapters the comic currently has (display only)."""
@@ -307,8 +377,10 @@ class ComicRegistry:
         """Drop one row. False when the ID was never registered."""
         cid = str(cid).strip()
         with self._lock:
-            if self._comics.pop(cid, None) is None:
+            entry = self._comics.pop(cid, None)
+            if entry is None:
                 return False
+            self._by_name.pop(entry["name"], None)
             self._commit()
             return True
 
@@ -391,7 +463,12 @@ def _plain_table(entries: list, title: str = "漫画表格") -> str:
 
 
 def build_table(entries: list, title: str = "漫画表格"):
-    """rich Table for the comic list."""
+    """rich Table for the comic list.
+
+    标题里出现 ``[...]`` 是常态（团队署名、版本标记，实测占一半以上），
+    直接塞进 Table 会被 rich 当成样式标签，遇到 ``[/xxx]`` 还会抛
+    MarkupError —— 所以名称一律用 Text 包起来，不走 markup 解析。
+    """
     table = Table(
         title=title,
         title_justify="left",
@@ -409,7 +486,8 @@ def build_table(entries: list, title: str = "漫画表格"):
         table.add_row("-", "-", "（暂无记录，下载后自动登记）", "-", "-")
         return table
     for i, entry in enumerate(entries, 1):
-        table.add_row(*_row(i, entry))
+        num, cid, name, chapters, updated = _row(i, entry)
+        table.add_row(num, cid, Text(name), chapters, updated)
     return table
 
 
@@ -422,25 +500,41 @@ def _alias_note(entries: list) -> str:
             f"（只保留一条名称映射）")
 
 
-def show_comic_table(watch: bool = False) -> None:
+def _slice(entries: list, limit: int) -> list:
+    if limit is None or limit <= 0 or len(entries) <= limit:
+        return entries
+    return entries[:limit]
+
+
+def _count_line(total: int, shown: int, path) -> str:
+    if shown < total:
+        return (f"共 {total} 本，显示前 {shown} 条"
+                f" · 完整列表用 --watch 或网页控制台 · {path}")
+    return f"共 {total} 本 · {path}"
+
+
+def show_comic_table(watch: bool = False, limit: int = DISPLAY_LIMIT) -> None:
     """Print the comic table once, or keep it live until Ctrl+C."""
     registry = get_registry()
     registry.load()             # pick up anything another process wrote
     if watch:
-        ComicTableLive(registry).run()
+        ComicTableLive(registry, limit=limit).run()
         return
 
     entries = registry.entries()
+    shown = _slice(entries, limit)
+    title = "漫画表格" if len(shown) == len(entries) else f"漫画表格（前 {len(shown)} 条）"
+    count = _count_line(len(entries), len(shown), registry.path)
+    note = _alias_note(entries)
+
     if HAS_RICH_TABLE:
-        console.print(build_table(entries))
-        console.print(f"[dim]  共 {len(entries)} 本 · {registry.path}[/dim]")
-        note = _alias_note(entries)
+        console.print(build_table(shown, title=title))
+        console.print(f"[dim]  {escape(count)}[/dim]")
         if note:
             console.print(f"[yellow]  {note}[/yellow]")
     else:
-        tprint(_plain_table(entries))
-        tprint(f"  共 {len(entries)} 本 · {registry.path}")
-        note = _alias_note(entries)
+        tprint(_plain_table(shown, title=title))
+        tprint(f"  {count}")
         if note:
             tprint(f"  {note}")
 
@@ -454,11 +548,13 @@ class ComicTableLive:
     second terminal.
     """
 
-    __slots__ = ("_registry", "_fps")
+    __slots__ = ("_registry", "_fps", "_limit")
 
-    def __init__(self, registry: ComicRegistry, refresh_per_second: int = 4):
+    def __init__(self, registry: ComicRegistry, refresh_per_second: int = 4,
+                 limit: int = DISPLAY_LIMIT):
         self._registry = registry
         self._fps = max(1, int(refresh_per_second))
+        self._limit = limit
 
     def run(self) -> None:
         # rich's Live only paints on a real terminal; on a pipe / redirected
@@ -470,7 +566,11 @@ class ComicTableLive:
 
     def _snapshot(self):
         entries = self._registry.entries()
-        return build_table(entries) if HAS_RICH_TABLE else _plain_table(entries)
+        shown = _slice(entries, self._limit)
+        title = ("漫画表格" if len(shown) == len(entries)
+                 else f"漫画表格（前 {len(shown)}/{len(entries)} 条）")
+        return (build_table(shown, title=title) if HAS_RICH_TABLE
+                else _plain_table(shown, title=title))
 
     def _emit(self, renderable) -> None:
         if HAS_RICH_TABLE:

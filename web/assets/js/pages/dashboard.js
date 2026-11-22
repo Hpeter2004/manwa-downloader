@@ -10,8 +10,8 @@ export const title = "总览";
 export const skeleton = "stats";
 
 export async function load() {
-  const [meta, comics] = await Promise.all([api.meta(), api.listComics()]);
-  return { meta, items: comics.items };
+  const [meta, comics] = await Promise.all([api.meta(), api.listComics({ limit: 5 })]);
+  return { meta, items: comics.items, total: comics.total };
 }
 
 function statCard(label, value, hint, mono = false) {

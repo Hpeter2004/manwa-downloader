@@ -21,6 +21,7 @@ from .config import (
     cleanup_tmp_files, logger,
 )
 from .api import get_chapters, get_comic_name, show_comic_info
+from .catalog import run_crawl, run_crawl_all
 from .comics import remember, show_comic_table
 from .downloader import (
     Stats, dl_chapter, init_workers, prepare_chapter, run_blocking,
@@ -95,6 +96,22 @@ def parse_args(argv, cfg: dict):
         help="启动本地网页控制台（浏览器里看表格）",
     )
     ap.add_argument(
+        "--crawl", action="store_true",
+        help="爬取站点漫画目录（名称 + Comic ID）写入漫画表格",
+    )
+    ap.add_argument(
+        "--all", action="store_true", dest="crawl_all",
+        help="爬取整站目录（约 17 万条，支持断点续跑）",
+    )
+    ap.add_argument(
+        "--pages", type=int, default=5,
+        help="--crawl 抓取页数（每页 20 条，默认 5，上限 50）",
+    )
+    ap.add_argument(
+        "--crawl-workers", type=int, default=12,
+        help="--all 并发抓取线程数（默认 12，上限 24）",
+    )
+    ap.add_argument(
         "--port", type=int, default=8787,
         help="网页控制台端口（默认 8787）",
     )
@@ -128,9 +145,10 @@ def parse_args(argv, cfg: dict):
     ap.add_argument("--output", type=str, default=".", help="输出目录（默认当前目录）")
     ap.add_argument("--info", action="store_true", help="仅显示漫画信息，不下载")
     args = ap.parse_args(argv)
-    # comic is optional only for the table / console views.
-    if not args.comic and not (args.list_comics or args.watch or args.serve):
-        ap.error("需要漫画 ID/URL；或用 --list / --watch / --serve")
+    # comic is optional only for the table / console / crawl views.
+    if not args.comic and not (args.list_comics or args.watch
+                               or args.serve or args.crawl or args.crawl_all):
+        ap.error("需要漫画 ID/URL；或用 --list / --watch / --serve / --crawl / --all")
     return args
 
 
@@ -755,6 +773,14 @@ def main():
             interactive_mode()         # No args -> interactive mode
         else:
             args = parse_args(sys.argv[1:], cfg)  # Parse only, no sys.argv hack
+            if args.crawl_all:
+                run_crawl_all(args.crawl_workers)
+                show_comic_table()
+                return                 # finally still runs the cleanup
+            if args.crawl:
+                run_crawl(max(1, args.pages))
+                show_comic_table()
+                return                 # finally still runs the cleanup
             if args.serve:
                 return run_web(port=args.port, writable=args.allow_write)
             if args.list_comics or args.watch:

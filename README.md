@@ -137,6 +137,23 @@ python download.py --watch
 
 交互模式里输入 `list` 也能查看。
 
+**从站点拉目录**：不想一条条手填，可以直接把站点现有的漫画目录爬进表格：
+
+```bash
+python download.py --crawl             # 默认 5 页（每页 20 条）
+python download.py --crawl --pages 20  # 20 页 = 400 条
+python download.py --all               # 整站目录（约 17 万条，支持断点续跑）
+```
+
+数据取自站点自己的排行接口（`/api/rank?page=N`）：每页 20 条，`title` 作名称、`/comic/{id}` 里的数字作 Comic ID，写入时走同一套唯一性规则。
+
+`--crawl` 是快速预览，最多 50 页；`--all` 是整站：
+
+- 并发抓取（默认 12 线程，`--crawl-workers` 可调，上限 24），约 8.5k 页 / 十几分钟
+- 每 2000 行落一次盘，每 100 页存一次断点到 `.crawl-checkpoint.json`
+- **中断不要紧**，重跑同一条命令会跳过已完成的页继续
+- 抓完自动清掉断点
+
 **映射规则——一个漫画名称只对应一个 Comic ID：**
 
 - **同名不同 ID**（续作、同名作品）：先登记的赢，后来的 ID 记为 `aliases`，不会多出一行；

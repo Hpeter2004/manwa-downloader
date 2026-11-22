@@ -84,7 +84,15 @@ async function request(path, { method = "GET", body, timeout = DEFAULT_TIMEOUT }
 export const api = {
   meta: () => request("/api/meta"),
   health: () => request("/api/health"),
-  listComics: () => request("/api/comics"),
+  /** 目录可能有十几万条，一律走服务端搜索 + 分页 */
+  listComics: ({ q = "", limit = 200, offset = 0 } = {}) => {
+    const params = new URLSearchParams();
+    const key = q.trim();
+    if (key) params.set("q", key);
+    params.set("limit", String(limit));
+    params.set("offset", String(offset));
+    return request(`/api/comics?${params.toString()}`);
+  },
   addComic: (cid, name) => request("/api/comics", { method: "POST", body: { cid, name } }),
   removeComic: (cid) => request(`/api/comics/${encodeURIComponent(cid)}`, { method: "DELETE" }),
 };

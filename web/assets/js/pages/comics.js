@@ -1,6 +1,8 @@
 /**
  * 漫画表格页 — 搜索 / 登记 / 删除。
- * 数据来自 GET /api/comics；写操作只在 operator 模式下出现。
+ *
+ * 目录抓全后有十几万条，所以列表**不一次性拉全**：默认取前 200 条，
+ * 搜索走服务端（`/api/comics?q=`），前端只负责渲染返回的这一页。
  */
 
 import { api } from "../core/api.js";
@@ -12,30 +14,31 @@ import { comicTable } from "../components/table.js";
 export const title = "漫画表格";
 export const skeleton = "table";
 
+const PAGE = 200;
+const SEARCH_DEBOUNCE = 260;
+
 export async function load() {
-  const data = await api.listComics();
-  return data.items;
+  return await api.listComics({ limit: PAGE });
 }
 
-export function render(items, ctx) {
+export function render(data, ctx) {
   const canWrite = ctx.guard.can("comics:write");
+  let items = data.items || [];
+  let total = data.total || 0;
   let keyword = "";
+  let seq = 0;
 
   const tableSlot = h("div");
   const metaSlot = h("div", { class: "table-meta" });
 
-  const visible = () => {
-    const k = keyword.trim().toLowerCase();
-    if (!k) return items;
-    return items.filter(
-      (item) => item.name.toLowerCase().includes(k) || item.cid.includes(k),
-    );
+  const describe = () => {
+    const shown = items.length < total ? `，显示前 ${items.length}` : "";
+    return keyword ? `「${keyword}」匹配 ${total} 条${shown}` : `共 ${total} 条${shown}`;
   };
 
   const paint = () => {
-    const rows = visible();
     tableSlot.replaceChildren(
-      comicTable(rows, {
+      comicTable(items, {
         canWrite,
         onDelete: async (entry) => {
           try {
@@ -50,9 +53,7 @@ export function render(items, ctx) {
       }),
     );
     metaSlot.replaceChildren(
-      h("span", null, keyword
-        ? `筛选 ${rows.length} / ${items.length} 条`
-        : `共 ${items.length} 条`),
+      h("span", null, describe()),
       h("span", null, "同名不同 ID 只保留先登记的一条，其余记为别名"),
     );
   };
@@ -60,12 +61,26 @@ export function render(items, ctx) {
   const search = h("input", {
     class: "input",
     type: "search",
-    placeholder: "搜索名称或 Comic ID",
+    placeholder: "搜索名称或 Comic ID（服务端搜索）",
     "aria-label": "搜索漫画",
-    onInput: (event) => {
-      keyword = event.target.value;
-      paint();
-    },
+  });
+
+  let timer = null;
+  search.addEventListener("input", () => {
+    keyword = search.value.trim();
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const token = ++seq;
+      try {
+        const res = await api.listComics({ q: keyword, limit: PAGE });
+        if (token !== seq) return;         // 输入太快，丢弃过期响应
+        items = res.items;
+        total = res.total;
+        paint();
+      } catch (err) {
+        reportError(err);
+      }
+    }, SEARCH_DEBOUNCE);
   });
 
   const refreshBtn = h("button", {
@@ -93,7 +108,7 @@ export function render(items, ctx) {
       { class: "page-head" },
       h("div", null,
         h("h1", null, "漫画表格"),
-        h("p", { class: "page-desc" }, "名称与 Comic ID 一一对应，随下载实时更新")),
+        h("p", { class: "page-desc" }, "名称与 Comic ID 一一对应，随下载与抓取更新")),
       h("div", { class: "page-actions" },
         h("a", { class: "btn btn-ghost", href: "#/" }, "返回总览")),
     ),

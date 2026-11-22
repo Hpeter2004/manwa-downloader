@@ -36,6 +36,24 @@ WRITE_VALUE = "manwa-web"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8787
 NAME_MAX_LEN = 120
+PAGE_SIZE = 200             # 一次最多返回多少行（目录抓全后是 17 万条）
+MAX_PAGE_SIZE = 1000
+
+# 目录有十几万行，entries() 每次要排序 + 复制一份；按 revision 缓存住
+_rows_cache = {"version": -1, "rows": []}
+
+
+def _filtered_rows(registry, keyword: str) -> list:
+    """Server-side search — 浏览器端过滤 17 万行没有意义。"""
+    if _rows_cache["version"] != registry.version:
+        _rows_cache["rows"] = registry.entries()
+        _rows_cache["version"] = registry.version
+    rows = _rows_cache["rows"]
+    if not keyword:
+        return rows
+    needle = keyword.casefold()
+    return [r for r in rows
+            if needle in r["name"].casefold() or needle in r["cid"]]
 
 
 # ============================================================
@@ -119,8 +137,28 @@ async def handle_health(request):
 async def handle_comics(request):
     registry = get_registry()
     registry.load()             # another process (a download) may have written
-    items = registry.entries()
-    return ok({"items": items, "total": len(items)})
+
+    try:
+        limit = int(request.query.get("limit", PAGE_SIZE))
+    except ValueError:
+        limit = PAGE_SIZE
+    limit = max(1, min(limit, MAX_PAGE_SIZE))
+    try:
+        offset = int(request.query.get("offset", 0))
+    except ValueError:
+        offset = 0
+    offset = max(0, offset)
+    keyword = (request.query.get("q") or "").strip()
+
+    rows = _filtered_rows(registry, keyword)
+    total = len(rows)
+    return ok({
+        "items": rows[offset:offset + limit],
+        "total": total,          # 命中总数（= 全库条数，没有关键词时）
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + limit < total,
+    })
 
 
 async def handle_comic_upsert(request):

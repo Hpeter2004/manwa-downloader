@@ -29,6 +29,8 @@ echo   Examples:
 echo     1728  = YiRenZhiXia
 echo     Or paste URL ^> https://www.manwaqi.cc/comic/1728
 echo.
+echo   网页控制台（表格可视化）：双击 打开网页控制台.bat
+echo.
 set /p COMIC_ID=Enter Comic ID or URL (q=quit): 
 
 if "%COMIC_ID%"=="" goto loop
@@ -40,8 +42,8 @@ echo   Fetching info...
 %RUN% %COMIC_ID% --info
 if errorlevel 1 (
     echo.
-    echo   [X] 鍙栦笉鍒版极鐢讳俊鎭紙澶氬崐鏄綉缁滆繛涓嶄笂绔欑偣锛岀湅涓婇潰鐨勬彁绀猴級
-    echo       鏈変唬鐞嗙殑璇濆湪 config.json 閲屽～ "proxy"
+    echo   [X] 取不到漫画信息（多半是网络连不上站点，看上面的提示）
+    echo       有代理的话在 config.json 里填 "proxy"
     goto loop
 )
 

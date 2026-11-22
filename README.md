@@ -150,6 +150,10 @@ python download.py --watch
 
 不想盯终端表格时，用浏览器看：
 
+**Windows 一键入口**：双击 **`打开网页控制台.bat`** —— 自动挑运行方式（venv → dist/exe → 系统 python）、起服务、等端口就绪后打开浏览器。已经在运行则直接打开页面。
+
+手动启动：
+
 ```bash
 python download.py --serve                    # 只读：只能看
 python download.py --serve --allow-write      # 可写：能登记 / 删除
@@ -295,6 +299,7 @@ manhua_download/
 ├── ManwaDownloader.spec     # PyInstaller 打包配置
 ├── repair_existing.py       # 修复历史下载（扩展名纠正 / 就地解密）
 ├── 运行下载.bat              # Windows 交互式入口
+├── 打开网页控制台.bat         # Windows 一键启动网页控制台
 └── 使用前观看.md             # 详细中文说明与 FAQ
 ```
 

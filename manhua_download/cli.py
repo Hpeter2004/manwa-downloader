@@ -21,11 +21,13 @@ from .config import (
     cleanup_tmp_files, logger,
 )
 from .api import get_chapters, get_comic_name, show_comic_info
+from .comics import remember, show_comic_table
 from .downloader import (
     Stats, dl_chapter, init_workers, prepare_chapter, run_blocking,
     shutdown_workers,
 )
 from .utils import sname, parse_cid, fmt_t, count_valid_images
+from .web import run_web
 
 # Rich imports (optional)
 try:
@@ -79,7 +81,27 @@ def parse_args(argv, cfg: dict):
         description="Manwa Manga Downloader v5 (manwaqi.cc)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("comic", help="漫画URL或ID")
+    ap.add_argument("comic", nargs="?", help="漫画URL或ID")
+    ap.add_argument(
+        "--list", action="store_true", dest="list_comics",
+        help="只显示漫画表格（漫画名称 / Comic ID），不下载",
+    )
+    ap.add_argument(
+        "--watch", action="store_true",
+        help="实时刷新漫画表格（数据变化自动更新，Ctrl+C 退出）",
+    )
+    ap.add_argument(
+        "--serve", action="store_true",
+        help="启动本地网页控制台（浏览器里看表格）",
+    )
+    ap.add_argument(
+        "--port", type=int, default=8787,
+        help="网页控制台端口（默认 8787）",
+    )
+    ap.add_argument(
+        "--allow-write", action="store_true",
+        help="网页控制台允许登记/删除（默认只读）",
+    )
     ap.add_argument("--start", type=int, default=1, help="起始章节号（默认1）")
     ap.add_argument("--end", type=int, default=0, help="结束章节号（默认全部）")
     ap.add_argument(
@@ -105,7 +127,11 @@ def parse_args(argv, cfg: dict):
     ap.add_argument("--no-resume", action="store_true", help="忽略已下载，重新下载")
     ap.add_argument("--output", type=str, default=".", help="输出目录（默认当前目录）")
     ap.add_argument("--info", action="store_true", help="仅显示漫画信息，不下载")
-    return ap.parse_args(argv)
+    args = ap.parse_args(argv)
+    # comic is optional only for the table / console views.
+    if not args.comic and not (args.list_comics or args.watch or args.serve):
+        ap.error("需要漫画 ID/URL；或用 --list / --watch / --serve")
+    return args
 
 
 # ============================================================
@@ -195,6 +221,10 @@ async def async_main(args):
         if comic_name:
             out_name = sname(comic_name, 30)
             _print_banner_line(comic_name)
+
+    # Log the comic before downloading starts: the table should show the row
+    # the moment a run begins, not when it finishes.
+    remember(comic_id, comic_name, len(all_chs))
 
     if not all_chs:
         tprint("! No chapters")
@@ -386,6 +416,8 @@ async def async_main(args):
     ela = time.time() - t_start
     downloaded = total_ok + total_skip
     _print_summary(downloaded, total_fail, ela, out, counters["api_fail"])
+    if comic_name:
+        tprint("  [i] 已登记到漫画表格（--list 查看 / --watch 实时刷新）")
 
 
 # ============================================================
@@ -558,11 +590,16 @@ def interactive_mode():
     tprint()
 
     while True:
-        cid_input = input("  Comic ID or URL (q=quit): ").strip()
+        cid_input = input("  Comic ID or URL (list=表格, q=quit): ").strip()
         if not cid_input:
             continue
         if cid_input.lower() in ("q", "quit"):
             break
+        if cid_input.lower() in ("list", "ls"):
+            tprint()
+            show_comic_table()
+            tprint()
+            continue
         cid = parse_cid(cid_input)
         if not cid:
             tprint("  X Cannot parse ID, try again.\n")
@@ -706,7 +743,11 @@ def main():
         setup_log_file()               # Error/warning log to file (first, so
                                        # config/domain failures are recorded)
         # --help needs no network — skip the (potentially slow) domain probe
-        needs_net = not any(a in ("-h", "--help") for a in sys.argv[1:])
+        # --list / --watch / --serve read local data only — no domain probe
+        needs_net = not any(
+            a in ("-h", "--help", "--list", "--watch", "--serve")
+            for a in sys.argv[1:]
+        )
         cfg = apply_config(detect=needs_net)
         setup_signal_handlers()        # Graceful shutdown on Ctrl+C
 
@@ -714,6 +755,11 @@ def main():
             interactive_mode()         # No args -> interactive mode
         else:
             args = parse_args(sys.argv[1:], cfg)  # Parse only, no sys.argv hack
+            if args.serve:
+                return run_web(port=args.port, writable=args.allow_write)
+            if args.list_comics or args.watch:
+                show_comic_table(watch=args.watch)
+                return                 # finally still runs the cleanup
             try:
                 asyncio.run(async_main(args))     # Single event loop, no nesting
             except KeyboardInterrupt:

@@ -1,0 +1,101 @@
+/* ============================================================
+   设计变量 — 所有颜色 / 间距 / 字号只在这里定义一次。
+   主题切换 = 换 <html data-theme>，组件不需要知道当前是亮还是暗。
+   ============================================================ */
+
+:root {
+  /* 品牌色：跟 CLI 的 rich cyan 对齐 */
+  --brand-50:  #ecfdff;
+  --brand-100: #cffafe;
+  --brand-300: #67e8f9;
+  --brand-500: #0891b2;
+  --brand-600: #0e7490;
+  --brand-700: #155e75;
+
+  /* 中性色 */
+  --bg:        #f6f7f9;
+  --surface:   #ffffff;
+  --surface-2: #f1f3f5;
+  --border:    #e4e7eb;
+  --border-2:  #d3d8de;
+  --text:      #16181d;
+  --text-2:    #5a6472;
+  --text-3:    #8b95a3;
+
+  /* 语义色 */
+  --ok:        #2b8a3e;
+  --ok-bg:     #ebfbee;
+  --warn:      #b45309;
+  --warn-bg:   #fff4e6;
+  --danger:    #c92a2a;
+  --danger-bg: #fff5f5;
+  --info-bg:   var(--brand-50);
+
+  /* 形状 */
+  --radius:    12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  /* 间距 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* 字号 */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+
+  /* 阴影 */
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .04);
+  --shadow-2: 0 8px 24px rgba(16, 24, 40, .10);
+
+  /* 字体 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC",
+               sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  /* 布局 */
+  --header-h: 56px;
+  --maxw: 1120px;
+
+  --transition: 160ms cubic-bezier(.4, 0, .2, 1);
+}
+
+[data-theme="dark"] {
+  --brand-50:  #0b2b33;
+  --brand-100: #0e3b45;
+  --brand-300: #22b8cf;
+  --brand-500: #22b8cf;
+  --brand-600: #38d9e8;
+  --brand-700: #99f6ff;
+
+  --bg:        #0f1115;
+  --surface:   #161a20;
+  --surface-2: #1d2229;
+  --border:    #262c34;
+  --border-2:  #323a44;
+  --text:      #e6e9ee;
+  --text-2:    #9aa4b2;
+  --text-3:    #6b7684;
+
+  --ok:        #51cf66;
+  --ok-bg:     #12251a;
+  --warn:      #ffa94d;
+  --warn-bg:   #2a1d0c;
+  --danger:    #ff6b6b;
+  --danger-bg: #2a1414;
+  --info-bg:   #12303a;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 12px 32px rgba(0, 0, 0, .5);
+}

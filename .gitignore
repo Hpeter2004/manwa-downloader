@@ -21,6 +21,7 @@ dist/
 manwa_download.log
 *.log
 .domain_cache.json
+.comics.json
 *.tmp
 
 # ========== 下载的漫画内容（版权资源，绝不入库）==========

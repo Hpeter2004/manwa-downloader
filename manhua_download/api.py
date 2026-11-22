@@ -12,6 +12,7 @@ import time
 import requests
 
 from . import config as _cfg
+from .comics import remember
 from .config import (
     PAGE_SIZE,
     get_rate_limiter, make_session, robust_get, thread_session, tprint,
@@ -189,6 +190,9 @@ def show_comic_info(cid: str):
             tprint(f"\n  Name: {name}")
     total = len(chs)
     real = sum(1 for c in chs if c.get("picCount", 0) > 1)
+    # --info and interactive mode land here, so this is where those paths get
+    # into the comic table (the download path records in cli.async_main).
+    remember(cid, name, total)
     tprint(f"  Manga: {total} entries ({real} chapters) ({fmt_t(time.time()-t0)})")
     tprint("\n  Chapter preview:")
     count = 0

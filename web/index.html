@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Manwa 控制台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e7490'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
+
+<!-- 主题需要在首屏前定好，否则会闪一下白色 -->
+<script>
+  try {
+    var saved = localStorage.getItem("manwa.theme") || "auto";
+    var dark = saved === "dark" || (saved === "auto" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  } catch (e) { /* 隐私模式下 localStorage 可能不可用 */ }
+</script>
+
+<link rel="stylesheet" href="/assets/css/tokens.css">
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/layout.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/assets/css/pages.css">
+</head>
+<body>
+  <div id="boot-bar" class="boot-bar" role="progressbar" aria-hidden="true"></div>
+  <div id="app" class="app-shell"></div>
+  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+  <noscript>
+    <p style="padding:2rem;font-family:sans-serif">
+      这个控制台需要启用 JavaScript。
+    </p>
+  </noscript>
+  <script type="module" src="/assets/js/main.js"></script>
+</body>
+</html>

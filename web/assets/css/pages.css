@@ -1,0 +1,91 @@
+/* ============================================================
+   页面层 — 只放某一页专属的布局微调，通用样式一律回 components。
+   ============================================================ */
+
+/* ---------- 总览 ---------- */
+.dash-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  padding: var(--sp-5);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(1200px 200px at 100% 0%, var(--brand-50), transparent 70%),
+    var(--surface);
+}
+.dash-hero h1 { font-size: 24px; }
+.dash-list { display: flex; flex-direction: column; }
+.dash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.dash-item:last-child { border-bottom: none; }
+.dash-item-main { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+
+/* ---------- 漫画表格 ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
+.toolbar .input { width: 260px; max-width: 100%; }
+.toolbar-spacer { margin-left: auto; }
+
+.table-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  flex-wrap: wrap;
+}
+
+/* ---------- 设置 ---------- */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-text { min-width: 0; }
+.setting-title { font-weight: 600; }
+.setting-desc { color: var(--text-2); font-size: var(--fs-sm); margin-top: 2px; }
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.segmented button {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-1);
+}

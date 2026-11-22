@@ -1,0 +1,155 @@
+/* ============================================================
+   布局层 — 全局骨架：顶栏 / 内容容器 / 页脚 / 栅格。
+   组件不在这里定义。
+   ============================================================ */
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 650;
+  font-size: var(--fs-md);
+  color: var(--text);
+  white-space: nowrap;
+}
+.brand:hover { text-decoration: none; color: var(--text); }
+.brand-mark {
+  width: 22px; height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ---------- 主导航 ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-left: var(--sp-3);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+}
+.nav-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-link[aria-current="page"] {
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+[data-theme="dark"] .nav-link[aria-current="page"] { color: var(--brand-700); }
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ---------- 内容容器 ---------- */
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-5) var(--sp-7);
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+.page-head .page-desc {
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ---------- 栅格 ---------- */
+.grid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- 页脚 ---------- */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: var(--sp-4) var(--sp-5);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 640px) {
+  .topbar { padding: 0 var(--sp-4); gap: var(--sp-2); }
+  .nav { margin-left: 0; }
+  .main { padding: var(--sp-5) var(--sp-4) var(--sp-6); }
+  h1 { font-size: 22px; }
+}

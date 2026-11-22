@@ -6,7 +6,7 @@ a = Analysis(
     ['download.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('config.json', '.')],
+    datas=[('config.json', '.'), ('web', 'web')],
     hiddenimports=[
         # Core package
         'manhua_download',

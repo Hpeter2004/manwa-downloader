@@ -17,6 +17,8 @@
 | **多重容错** | 图源回退 + 章级别重试 + 动态 Referer + TLS 握手重置自动重连 |
 | **智能续传** | 自动跳过已下载章节，中断后可接续 |
 | **Rich 进度条** | 章节级进度 + 实时速度 / 带宽 |
+| **漫画表格** | 漫画名称 ⇄ Comic ID 一对一登记（同名只留一条映射），`--list` 查看、`--watch` 实时刷新 |
+| **网页控制台** | `--serve` 起本地页面：aiohttp 静态服务 + 原生 ES Module，零构建零新依赖，与终端共用同一份数据 |
 | **优雅退出** | Ctrl+C 清理 `.tmp` 残留，已完成的图片不受影响 |
 | **AES-256-CBC 解密** | 自动识别并解密加密 CDN 返回的图片 |
 | **代理支持** | API 与图片下载均可走 HTTP 代理 |
@@ -86,7 +88,9 @@ Windows 下也可双击 `运行下载.bat`，它会依次尝试 `.venv`、`dist\
 
 | 参数 | 说明 | 默认 |
 |------|------|------|
-| `comic` | 漫画 ID 或 URL（必填） | — |
+| `comic` | 漫画 ID 或 URL（`--list` / `--watch` 时可省略） | — |
+| `--list` | 只显示漫画表格（名称 / Comic ID），不下载 | 关 |
+| `--watch` | 实时刷新漫画表格，数据变化自动更新 | 关 |
 | `--start N` | 起始章节号 | 1 |
 | `--end N` | 结束章节号 | 全部 |
 | `--source N` | 图源索引（按配置动态生成） | 0 |
@@ -104,6 +108,101 @@ python download.py 1728 --source 1 --workers 96 --ch-workers 12
 # 极速档（带宽允许时）
 python download.py 1728 --workers 128 --ch-workers 16
 ```
+
+参数表补充：`--serve` / `--port` / `--allow-write` 见下方「网页控制台」。
+
+---
+
+## 漫画表格
+
+下载器只接受 Comic ID，而标题只存在于被 `sname(name, 30)` 截断过的文件夹名里——事后想问「我下过哪些漫画、各自的 ID 是多少」是答不上来的。所以每次下载 / `--info` / 交互模式运行，都会把这本漫画登记进 `.comics.json`（与 `.domain_cache.json` 同目录，原子写入）。
+
+```bash
+# 查看表格
+python download.py --list
+
+# 实时刷新：另一个终端在下载时，这里会自动更新；Ctrl+C 退出
+python download.py --watch
+```
+
+```
+漫画表格
+
+ #   Comic ID   漫画名称            章节   最后使用
+ ──────────────────────────────────────────────────────
+ 1         31   东京食尸鬼           168   2026-11-20
+ 2       1728   一人之下             520   2026-11-22
+ 3       2000   斗破苍穹·重制版       300   2026-11-21
+```
+
+交互模式里输入 `list` 也能查看。
+
+**映射规则——一个漫画名称只对应一个 Comic ID：**
+
+- **同名不同 ID**（续作、同名作品）：先登记的赢，后来的 ID 记为 `aliases`，不会多出一行；
+- **同一 ID 改名**：新名字覆盖旧名，旧名当场释放；
+- **手改 `.comics.json` 造成重复**：读取时按同样规则自动修复，不会把坏数据带进表格；
+- **删除某条记录**：直接编辑 `.comics.json`（UTF-8、人可读）。
+
+---
+
+## 网页控制台
+
+不想盯终端表格时，用浏览器看：
+
+```bash
+python download.py --serve                    # 只读：只能看
+python download.py --serve --allow-write      # 可写：能登记 / 删除
+python download.py --serve --port 9000        # 换端口
+```
+
+打开 `http://127.0.0.1:8787/`。数据仍是同一个 `.comics.json`，终端和网页改的是同一份文件。
+
+**为什么这么选**：项目原本没有前端，也没有 Node 工具链。为了不引入新依赖、不引入构建链，后端直接用已经装好的 `aiohttp.web` 提供静态页和 JSON API，前端写原生 ES Module——不需要 npm、不需要打包，改完刷新就能看到。
+
+**安全边界**（本地 HTTP 服务最容易忽略的部分）：
+
+- 默认只绑 `127.0.0.1`，不对局域网开放；
+- 写操作必须带 `X-Requested-With: manwa-web` 且 Origin 与 Host 一致，挡住任意网页往 localhost 发 POST（CSRF）；
+- 默认只读，`--allow-write` 才开写；**服务端二次校验**，不靠前端藏按钮。
+
+**前端目录**：
+
+```
+web/
+├── index.html                 # 唯一入口（含首屏主题，防闪烁）
+└── assets/
+    ├── css/
+    │   ├── tokens.css         # 设计变量：颜色 / 间距 / 字号 / 圆角，明暗两套
+    │   ├── base.css           # reset + 排版 + 可访问性
+    │   ├── layout.css         # 顶栏 / 内容容器 / 栅格
+    │   ├── components.css     # 按钮 / 卡片 / 表格 / 骨架 / Toast
+    │   └── pages.css          # 页面级微调
+    └── js/
+        ├── main.js            # 装配：外壳 → 拉 meta → 建路由 → 启动
+        ├── core/
+        │   ├── api.js         # fetch 封装：信封解析 / 超时 / ApiError
+        │   ├── router.js      # hash 路由 + 权限守卫 + 骨架屏
+        │   ├── store.js       # 极简订阅式状态
+        │   ├── guard.js       # 能力清单（comics:read / comics:write）
+        │   ├── theme.js       # 浅色 / 深色 / 跟随系统
+        │   ├── feedback.js    # 顶部加载条 + 全局错误出口
+        │   └── dom.js         # h() 元素工厂
+        ├── components/        # 外壳 / 表格 / 骨架·空·错三态 / Toast
+        └── pages/             # 总览 / 漫画表格 / 设置 / 404
+```
+
+**加一个页面**：在 `pages/` 放一个导出 `title`、`skeleton`、`requires`、`load(ctx)`、`render(data, ctx)` 的模块，再到 `main.js` 的 `ROUTES` 里加一行即可。路由内置了三件事——守卫、骨架屏、错误兜底，页面自己不用管。
+
+**接口**（统一信封 `{ok, data}` / `{ok:false, error:{code, message}}`）：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/meta` | 版本、运行模式、能力清单、数据路径 |
+| GET | `/api/comics` | 漫画列表 |
+| POST | `/api/comics` | 登记一条（需写权限） |
+| DELETE | `/api/comics/{cid}` | 删除一条（需写权限） |
+| GET | `/api/health` | 存活探针 |
 
 ---
 
@@ -183,10 +282,13 @@ manhua_download/
 ├── manhua_download/
 │   ├── api.py               # 章节列表 / 图片列表 API（同步阻塞，交给线程池）
 │   ├── cli.py               # 参数解析 + 交互模式 + 异步编排
+│   ├── comics.py            # 漫画表格：名称 ⇄ Comic ID 登记 + 实时刷新
 │   ├── config.py            # 配置加载、域名探测、限速器、日志、信号处理
 │   ├── crypto_utils.py      # AES-256-CBC 图片解密
 │   ├── downloader.py        # 异步下载流水线、线程池、统计
-│   └── utils.py             # 文件名清洗、章节号解析等纯函数
+│   ├── utils.py             # 文件名清洗、章节号解析等纯函数
+│   └── web.py               # 网页控制台：aiohttp 静态服务 + JSON API
+├── web/                     # 前端（原生 ES Module，零构建）
 ├── bench/                   # 本地基准测试（假服务器 + 死镜像模拟）
 ├── config.json              # 默认配置
 ├── requirements.txt
@@ -221,6 +323,12 @@ PyInstaller 打包的 exe 常被误报，源码可完整审查，也可直接用
 ---
 
 ## 版本历史
+
+### v5.3 (2026-11-22)
+新增本地网页控制台：`--serve` 用已有的 `aiohttp.web` 提供页面与 JSON API，前端为原生 ES Module（零构建、零新依赖）。含全局外壳与 hash 路由、能力级权限与 CSRF 防护、统一请求封装 / 错误态 / 骨架屏 / Toast、明暗主题与四个页面模板（总览 / 表格 / 设置 / 404）。
+
+### v5.2 (2026-11-22)
+新增漫画表格：名称与 Comic ID 一对一登记（同名只留一条映射、重复 ID 记别名），`--list` 查看、`--watch` 实时刷新，下载 / `--info` / 交互模式运行时自动登记。
 
 ### v5.1 (2026-10-24)
 修复域名探测误判（停放域名导致启动即失败）、增加探测结果缓存、失败自动换镜像重试、异常不再无声崩溃、HTTP 层自动重试 TLS 重置、支持代理。
